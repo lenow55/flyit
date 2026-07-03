@@ -1,0 +1,47 @@
+name: fare-monitor
+
+# Запуск каждые 8 часов (в 00:00, 08:00, 16:00 UTC) + вручную кнопкой.
+on:
+  schedule:
+    - cron: "0 */8 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # чтобы коммитить обновлённую историю
+  pages: write      # чтобы публиковать на GitHub Pages
+  id-token: write
+
+concurrency:
+  group: fare-monitor
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Собрать свежие цены и пересобрать страницу
+        env:
+          TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
+        run: python monitor.py
+
+      - name: Сохранить историю в репозиторий
+        run: |
+          git config user.name  "fare-monitor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/history.csv docs/index.html
+          git commit -m "Обновление цен $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "нет изменений"
+          git push
+
+      - name: Подготовить артефакт для Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Опубликовать на GitHub Pages
+        uses: actions/deploy-pages@v4
