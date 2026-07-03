@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг цен · Москва → Венеция · сентябрь</title>
+<style>
+  :root {
+    --bg:#12151c; --panel:#1a1f29; --ink:#e8eaed; --muted:#8b93a3;
+    --line:#2a313d; --accent:#e0a03e; --down:#5fbf7f; --up:#e06a5c;
+    --evn:#7fa8d0; --tur:#d08f7f; --beg:#9db07f;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5; padding:32px 20px 64px; }
+  .wrap { max-width:820px; margin:0 auto; }
+  header { border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:8px; }
+  .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); }
+  h1 { font-size:26px; margin:6px 0 4px; font-weight:650; }
+  .stamp { font-family:var(--mono); font-size:13px; color:var(--muted); }
+  h3 { font-size:15px; margin:30px 0 12px; font-weight:600; }
+  .grid { display:grid; gap:14px; grid-template-columns:1fr; }
+  @media(min-width:520px){ .grid { grid-template-columns:1fr 1fr; } }
+  @media(min-width:900px){ .grid { grid-template-columns:repeat(4,1fr); } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px; border-top:3px solid var(--line); }
+  .card.evn { border-top-color:var(--evn); }
+  .card.tur { border-top-color:var(--tur); }
+  .card.beg { border-top-color:var(--beg); }
+  .card.any { border-top-color:var(--accent); }
+  .opt { font-size:12px; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); margin-bottom:10px; }
+  .price { font-family:var(--mono); font-size:23px; font-weight:600; }
+  .price.na { color:var(--muted); font-size:16px; }
+  .eur { font-family:var(--mono); font-size:14px; color:var(--muted); margin-top:2px; }
+  .delta { font-size:12px; font-family:var(--mono); margin-left:4px; }
+  .delta.down { color:var(--down); } .delta.up { color:var(--up); } .delta.flat { color:var(--muted); }
+  .meta { color:var(--muted); font-size:12px; margin:8px 0 10px; }
+  .spark { width:100%; height:auto; display:block; margin:4px 0 12px; }
+  .btn { display:inline-block; font-size:12px; color:var(--accent); text-decoration:none;
+    border:1px solid var(--line); border-radius:7px; padding:5px 10px; margin:2px 4px 2px 0; }
+  .btn:hover { border-color:var(--accent); }
+  .muted { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  th,td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-family:var(--mono); font-size:11px;
+    text-transform:uppercase; letter-spacing:.06em; }
+  td.num,th.num { text-align:right; font-family:var(--mono); }
+  footer { margin-top:36px; color:var(--muted); font-size:12px;
+    border-top:1px solid var(--line); padding-top:16px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Fare monitor · обновление каждые 8 ч · вылет сентябрь 2026</div>
+    <h1>Москва · СПб → Венеция / Тревизо</h1>
+    <div class="stamp">Проверка: 03.07.2026 11:21 МСК · курс ЦБ: 1 € = 92.37 ₽</div>
+  </header>
+
+  <h3>Москва → Венеция (Марко Поло)</h3><div class="grid">
+          <article class="card any">
+            <div class="opt">Любой маршрут (мин.)</div>
+            <div class="price">21 528 ₽ <span class="delta down">▼ 1 666 ₽</span></div><div class="eur">~233 €</div><div class="meta">вылет 2026-09-07 · 2 перес. · 10 ч 29 мин · a/к SU · мин. за всё время: 21 875 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,8.0 L68.4,51.2 L128.9,37.9 L189.3,60.5 L249.8,97.2 L310.2,76.3 L370.7,69.0 L431.1,85.7 L491.6,77.6 L552.0,102.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="102.0" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909VCE1" target="_blank" rel="noopener">Aviasales →</a>
+          </article>
+          <article class="card evn">
+            <div class="opt">Через Ереван</div>
+            <div class="price">21 693 ₽ <span class="delta down">▼ 4 097 ₽</span></div><div class="eur">~235 €</div><div class="meta">Ереван: 12 648 ₽ + 9 045 ₽ · мин. за всё время: 21 158 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,68.1 L68.4,102.0 L128.9,69.2 L189.3,79.7 L249.8,67.6 L310.2,38.1 L370.7,43.8 L431.1,8.0 L491.6,37.4 L552.0,10.1" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="10.1" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909EVN1" target="_blank" rel="noopener">MOW→EVN →</a><a class="btn" href="https://www.aviasales.ru/search/EVN0909VCE1" target="_blank" rel="noopener">EVN→VCE →</a>
+          </article>
+          <article class="card tur">
+            <div class="opt">Через Турцию</div>
+            <div class="price">20 886 ₽ <span class="delta down">▼ 808 ₽</span></div><div class="eur">~226 €</div><div class="meta">Стамбул IST: 14 720 ₽ + 6 166 ₽ · мин. за всё время: 18 186 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,45.9 L68.4,13.0 L128.9,72.5 L189.3,12.2 L249.8,56.6 L310.2,35.2 L370.7,101.9 L431.1,19.2 L491.6,8.0 L552.0,102.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="102.0" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909IST1" target="_blank" rel="noopener">MOW→IST →</a><a class="btn" href="https://www.aviasales.ru/search/IST0909VCE1" target="_blank" rel="noopener">IST→VCE →</a>
+          </article>
+          <article class="card beg">
+            <div class="opt">Через Белград</div>
+            <div class="price">21 255 ₽ <span class="delta down">▼ 4 720 ₽</span></div><div class="eur">~230 €</div><div class="meta">Белград: 16 471 ₽ + 4 784 ₽ · мин. за всё время: 19 523 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,64.0 L68.4,23.5 L128.9,20.3 L189.3,12.0 L249.8,102.0 L310.2,61.9 L370.7,26.9 L431.1,98.1 L491.6,8.0 L552.0,39.4" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="39.4" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909BEG1" target="_blank" rel="noopener">MOW→BEG →</a><a class="btn" href="https://www.aviasales.ru/search/BEG0909VCE1" target="_blank" rel="noopener">BEG→VCE →</a>
+          </article></div><h3>Москва → Тревизо (~20 км до Венеции)</h3><div class="grid">
+          <article class="card any">
+            <div class="opt">Любой маршрут (мин.)</div>
+            <div class="price">22 710 ₽ <span class="delta up">▲ 2 467 ₽</span></div><div class="eur">~246 €</div><div class="meta">вылет 2026-09-24 · 2 перес. · 13 ч 17 мин · a/к PC · мин. за всё время: 18 356 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,58.3 L68.4,102.0 L128.9,20.7 L189.3,8.0 L249.8,74.8 L310.2,65.8 L370.7,94.6 L431.1,14.2 L491.6,64.9 L552.0,67.9" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="67.9" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909TSF1" target="_blank" rel="noopener">Aviasales →</a>
+          </article>
+          <article class="card evn">
+            <div class="opt">Через Ереван</div>
+            <div class="price">19 916 ₽ <span class="delta down">▼ 1 463 ₽</span></div><div class="eur">~216 €</div><div class="meta">Ереван: 9 575 ₽ + 10 341 ₽ · мин. за всё время: 18 806 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,38.4 L68.4,47.0 L128.9,77.7 L189.3,19.9 L249.8,49.2 L310.2,26.7 L370.7,44.4 L431.1,102.0 L491.6,66.9 L552.0,8.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="8.0" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909EVN1" target="_blank" rel="noopener">MOW→EVN →</a><a class="btn" href="https://www.aviasales.ru/search/EVN0909TSF1" target="_blank" rel="noopener">EVN→TSF →</a>
+          </article>
+          <article class="card tur">
+            <div class="opt">Через Турцию</div>
+            <div class="price">17 476 ₽ <span class="delta down">▼ 202 ₽</span></div><div class="eur">~189 €</div><div class="meta">Стамбул SAW: 12 207 ₽ + 5 269 ₽ · мин. за всё время: 15 897 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,47.3 L68.4,8.0 L128.9,23.6 L189.3,76.8 L249.8,21.0 L310.2,47.5 L370.7,25.7 L431.1,46.4 L491.6,75.7 L552.0,102.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="102.0" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909SAW1" target="_blank" rel="noopener">MOW→SAW →</a><a class="btn" href="https://www.aviasales.ru/search/SAW0909TSF1" target="_blank" rel="noopener">SAW→TSF →</a>
+          </article>
+          <article class="card beg">
+            <div class="opt">Через Белград</div>
+            <div class="price">21 788 ₽ <span class="delta down">▼ 4 130 ₽</span></div><div class="eur">~236 €</div><div class="meta">Белград: 17 407 ₽ + 4 381 ₽ · мин. за всё время: 18 623 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,30.3 L68.4,69.4 L128.9,102.0 L189.3,59.6 L249.8,35.2 L310.2,59.6 L370.7,18.2 L431.1,79.1 L491.6,8.0 L552.0,24.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="24.0" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/MOW0909BEG1" target="_blank" rel="noopener">MOW→BEG →</a><a class="btn" href="https://www.aviasales.ru/search/BEG0909TSF1" target="_blank" rel="noopener">BEG→TSF →</a>
+          </article></div><h3>Санкт-Петербург → Венеция (Марко Поло)</h3><div class="grid">
+          <article class="card any">
+            <div class="opt">Любой маршрут (мин.)</div>
+            <div class="price">22 620 ₽ <span class="delta up">▲ 712 ₽</span></div><div class="eur">~245 €</div><div class="meta">вылет 2026-09-17 · 2 перес. · 13 ч 32 мин · a/к TK · мин. за всё время: 20 633 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,8.0 L68.4,78.5 L128.9,41.0 L189.3,81.9 L249.8,44.5 L310.2,23.6 L370.7,102.0 L431.1,59.9 L491.6,68.4 L552.0,56.6" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="56.6" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909VCE1" target="_blank" rel="noopener">Aviasales →</a>
+          </article>
+          <article class="card evn">
+            <div class="opt">Через Ереван</div>
+            <div class="price">27 684 ₽ <span class="delta up">▲ 529 ₽</span></div><div class="eur">~300 €</div><div class="meta">Ереван: 15 995 ₽ + 11 689 ₽ · мин. за всё время: 23 738 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,102.0 L68.4,87.1 L128.9,86.9 L189.3,8.0 L249.8,51.7 L310.2,85.4 L370.7,70.1 L431.1,53.3 L491.6,36.4 L552.0,40.9" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="40.9" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909EVN1" target="_blank" rel="noopener">LED→EVN →</a><a class="btn" href="https://www.aviasales.ru/search/EVN0909VCE1" target="_blank" rel="noopener">EVN→VCE →</a>
+          </article>
+          <article class="card tur">
+            <div class="opt">Через Турцию</div>
+            <div class="price">22 298 ₽ <span class="delta up">▲ 2 095 ₽</span></div><div class="eur">~241 €</div><div class="meta">Стамбул IST: 13 152 ₽ + 9 146 ₽ · мин. за всё время: 16 271 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,48.8 L68.4,102.0 L128.9,89.6 L189.3,32.7 L249.8,45.7 L310.2,70.1 L370.7,8.0 L431.1,50.2 L491.6,28.5 L552.0,38.7" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="38.7" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909IST1" target="_blank" rel="noopener">LED→IST →</a><a class="btn" href="https://www.aviasales.ru/search/IST0909VCE1" target="_blank" rel="noopener">IST→VCE →</a>
+          </article>
+          <article class="card beg">
+            <div class="opt">Через Белград</div>
+            <div class="price">21 241 ₽ <span class="delta up">▲ 284 ₽</span></div><div class="eur">~230 €</div><div class="meta">Белград: 14 088 ₽ + 7 153 ₽ · мин. за всё время: 17 257 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,59.0 L68.4,79.1 L128.9,27.3 L189.3,55.3 L249.8,69.3 L310.2,8.0 L370.7,102.0 L431.1,31.4 L491.6,60.2 L552.0,79.6" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="79.6" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909BEG1" target="_blank" rel="noopener">LED→BEG →</a><a class="btn" href="https://www.aviasales.ru/search/BEG0909VCE1" target="_blank" rel="noopener">BEG→VCE →</a>
+          </article></div><h3>Санкт-Петербург → Тревизо (~20 км до Венеции)</h3><div class="grid">
+          <article class="card any">
+            <div class="opt">Любой маршрут (мин.)</div>
+            <div class="price">21 490 ₽ <span class="delta up">▲ 1 535 ₽</span></div><div class="eur">~233 €</div><div class="meta">вылет 2026-09-24 · 1 перес. · 13 ч 13 мин · a/к TK · мин. за всё время: 19 476 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,48.3 L68.4,44.8 L128.9,48.4 L189.3,89.3 L249.8,8.0 L310.2,51.1 L370.7,36.0 L431.1,102.0 L491.6,91.8 L552.0,101.8" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="101.8" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909TSF1" target="_blank" rel="noopener">Aviasales →</a>
+          </article>
+          <article class="card evn">
+            <div class="opt">Через Ереван</div>
+            <div class="price">26 447 ₽ <span class="delta up">▲ 3 410 ₽</span></div><div class="eur">~286 €</div><div class="meta">Ереван: 15 218 ₽ + 11 229 ₽ · мин. за всё время: 20 488 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,8.0 L68.4,51.3 L128.9,102.0 L189.3,26.6 L249.8,24.0 L310.2,43.0 L370.7,66.9 L431.1,78.7 L491.6,55.1 L552.0,15.2" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="15.2" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909EVN1" target="_blank" rel="noopener">LED→EVN →</a><a class="btn" href="https://www.aviasales.ru/search/EVN0909TSF1" target="_blank" rel="noopener">EVN→TSF →</a>
+          </article>
+          <article class="card tur">
+            <div class="opt">Через Турцию</div>
+            <div class="price">17 715 ₽ <span class="delta down">▼ 2 151 ₽</span></div><div class="eur">~192 €</div><div class="meta">Стамбул SAW: 13 046 ₽ + 4 669 ₽ · мин. за всё время: 17 444 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,102.0 L68.4,20.2 L128.9,8.0 L189.3,49.0 L249.8,79.2 L310.2,78.1 L370.7,92.7 L431.1,98.0 L491.6,62.9 L552.0,66.6" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="66.6" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909SAW1" target="_blank" rel="noopener">LED→SAW →</a><a class="btn" href="https://www.aviasales.ru/search/SAW0909TSF1" target="_blank" rel="noopener">SAW→TSF →</a>
+          </article>
+          <article class="card beg">
+            <div class="opt">Через Белград</div>
+            <div class="price">18 414 ₽ <span class="delta down">▼ 4 566 ₽</span></div><div class="eur">~199 €</div><div class="meta">Белград: 14 172 ₽ + 4 242 ₽ · мин. за всё время: 18 886 ₽</div>
+            <svg viewBox="0 0 560 110" class="spark" role="img" aria-label="История цены"><path d="M8.0,8.0 L68.4,63.8 L128.9,102.0 L189.3,47.2 L249.8,32.9 L310.2,50.0 L370.7,69.5 L431.1,43.0 L491.6,51.3 L552.0,84.3" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="552.0" cy="84.3" r="3.5" fill="var(--accent)"/></svg>
+            <a class="btn" href="https://www.aviasales.ru/search/LED0909BEG1" target="_blank" rel="noopener">LED→BEG →</a><a class="btn" href="https://www.aviasales.ru/search/BEG0909TSF1" target="_blank" rel="noopener">BEG→TSF →</a>
+          </article></div>
+
+  <h3>История проверок</h3>
+  <table>
+    <thead><tr><th>Проверено (UTC)</th><th>Откуда</th><th>Пункт</th><th>Маршрут</th>
+    <th class="num">₽</th><th class="num">€</th></tr></thead>
+    <tbody><tr><td>2026-07-04 00:00</td><td>LED</td><td>TSF</td><td>Через Белград</td><td class='num'>20 320 ₽</td><td class='num'>~220 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>TSF</td><td>Через Турцию</td><td class='num'>19 635 ₽</td><td class='num'>~213 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>TSF</td><td>Через Ереван</td><td class='num'>25 209 ₽</td><td class='num'>~273 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>19 485 ₽</td><td class='num'>~211 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>VCE</td><td>Через Белград</td><td class='num'>19 236 ₽</td><td class='num'>~208 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>VCE</td><td>Через Турцию</td><td class='num'>19 654 ₽</td><td class='num'>~213 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>VCE</td><td>Через Ереван</td><td class='num'>26 920 ₽</td><td class='num'>~291 €</td></tr><tr><td>2026-07-04 00:00</td><td>LED</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>22 358 ₽</td><td class='num'>~242 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>TSF</td><td>Через Белград</td><td class='num'>24 679 ₽</td><td class='num'>~267 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>TSF</td><td>Через Турцию</td><td class='num'>15 897 ₽</td><td class='num'>~172 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>TSF</td><td>Через Ереван</td><td class='num'>25 688 ₽</td><td class='num'>~278 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>20 087 ₽</td><td class='num'>~217 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>VCE</td><td>Через Белград</td><td class='num'>23 823 ₽</td><td class='num'>~258 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>VCE</td><td>Через Турцию</td><td class='num'>18 186 ₽</td><td class='num'>~197 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>VCE</td><td>Через Ереван</td><td class='num'>27 745 ₽</td><td class='num'>~300 €</td></tr><tr><td>2026-07-04 00:00</td><td>MOW</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>21 875 ₽</td><td class='num'>~237 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>TSF</td><td>Через Белград</td><td class='num'>22 980 ₽</td><td class='num'>~249 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>TSF</td><td>Через Турцию</td><td class='num'>19 866 ₽</td><td class='num'>~215 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>TSF</td><td>Через Ереван</td><td class='num'>23 037 ₽</td><td class='num'>~249 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>19 955 ₽</td><td class='num'>~216 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>VCE</td><td>Через Белград</td><td class='num'>20 957 ₽</td><td class='num'>~227 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>VCE</td><td>Через Турцию</td><td class='num'>20 203 ₽</td><td class='num'>~219 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>VCE</td><td>Через Ереван</td><td class='num'>27 155 ₽</td><td class='num'>~294 €</td></tr><tr><td>2026-07-03 16:00</td><td>LED</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>21 908 ₽</td><td class='num'>~237 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>TSF</td><td>Через Белград</td><td class='num'>25 918 ₽</td><td class='num'>~281 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>TSF</td><td>Через Турцию</td><td class='num'>17 678 ₽</td><td class='num'>~191 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>TSF</td><td>Через Ереван</td><td class='num'>21 379 ₽</td><td class='num'>~231 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>20 243 ₽</td><td class='num'>~219 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>VCE</td><td>Через Белград</td><td class='num'>25 975 ₽</td><td class='num'>~281 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>VCE</td><td>Через Турцию</td><td class='num'>21 694 ₽</td><td class='num'>~235 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>VCE</td><td>Через Ереван</td><td class='num'>25 790 ₽</td><td class='num'>~279 €</td></tr><tr><td>2026-07-03 16:00</td><td>MOW</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>23 194 ₽</td><td class='num'>~251 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>TSF</td><td>Через Белград</td><td class='num'>23 652 ₽</td><td class='num'>~256 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>TSF</td><td>Через Турцию</td><td class='num'>17 694 ₽</td><td class='num'>~192 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>TSF</td><td>Через Ереван</td><td class='num'>21 757 ₽</td><td class='num'>~236 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>19 476 ₽</td><td class='num'>~211 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>VCE</td><td>Через Белград</td><td class='num'>23 502 ₽</td><td class='num'>~254 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>VCE</td><td>Через Турцию</td><td class='num'>19 043 ₽</td><td class='num'>~206 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>VCE</td><td>Через Ереван</td><td class='num'>26 278 ₽</td><td class='num'>~284 €</td></tr><tr><td>2026-07-03 08:00</td><td>LED</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>22 231 ₽</td><td class='num'>~241 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>TSF</td><td>Через Белград</td><td class='num'>20 402 ₽</td><td class='num'>~221 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>TSF</td><td>Через Турцию</td><td class='num'>19 660 ₽</td><td class='num'>~213 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>TSF</td><td>Через Ереван</td><td class='num'>18 806 ₽</td><td class='num'>~204 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>22 820 ₽</td><td class='num'>~247 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>VCE</td><td>Через Белград</td><td class='num'>19 791 ₽</td><td class='num'>~214 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>VCE</td><td>Через Турцию</td><td class='num'>21 276 ₽</td><td class='num'>~230 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>VCE</td><td>Через Ереван</td><td class='num'>27 895 ₽</td><td class='num'>~302 €</td></tr><tr><td>2026-07-03 08:00</td><td>MOW</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>22 760 ₽</td><td class='num'>~246 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>TSF</td><td>Через Белград</td><td class='num'>21 514 ₽</td><td class='num'>~233 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>TSF</td><td>Через Турцию</td><td class='num'>18 020 ₽</td><td class='num'>~195 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>TSF</td><td>Через Ереван</td><td class='num'>22 396 ₽</td><td class='num'>~242 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>22 565 ₽</td><td class='num'>~244 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>VCE</td><td>Через Белград</td><td class='num'>17 257 ₽</td><td class='num'>~187 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>VCE</td><td>Через Турцию</td><td class='num'>21 297 ₽</td><td class='num'>~231 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>VCE</td><td>Через Ереван</td><td class='num'>25 401 ₽</td><td class='num'>~275 €</td></tr><tr><td>2026-07-03 00:00</td><td>LED</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>20 633 ₽</td><td class='num'>~223 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>TSF</td><td>Через Белград</td><td class='num'>25 124 ₽</td><td class='num'>~272 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>TSF</td><td>Через Турцию</td><td class='num'>21 054 ₽</td><td class='num'>~228 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>TSF</td><td>Через Ереван</td><td class='num'>23 025 ₽</td><td class='num'>~249 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>18 731 ₽</td><td class='num'>~203 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>VCE</td><td>Через Белград</td><td class='num'>24 680 ₽</td><td class='num'>~267 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>VCE</td><td>Через Турцию</td><td class='num'>18 188 ₽</td><td class='num'>~197 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>VCE</td><td>Через Ереван</td><td class='num'>25 327 ₽</td><td class='num'>~274 €</td></tr><tr><td>2026-07-03 00:00</td><td>MOW</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>23 660 ₽</td><td class='num'>~256 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>TSF</td><td>Через Белград</td><td class='num'>23 084 ₽</td><td class='num'>~250 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>TSF</td><td>Через Турцию</td><td class='num'>18 926 ₽</td><td class='num'>~205 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>TSF</td><td>Через Ереван</td><td class='num'>23 698 ₽</td><td class='num'>~257 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>TSF</td><td>Любой маршрут (мин.)</td><td class='num'>21 860 ₽</td><td class='num'>~237 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>VCE</td><td>Через Белград</td><td class='num'>25 576 ₽</td><td class='num'>~277 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>VCE</td><td>Через Турцию</td><td class='num'>17 974 ₽</td><td class='num'>~195 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>VCE</td><td>Через Ереван</td><td class='num'>24 601 ₽</td><td class='num'>~266 €</td></tr><tr><td>2026-07-02 16:00</td><td>LED</td><td>VCE</td><td>Любой маршрут (мин.)</td><td class='num'>23 611 ₽</td><td class='num'>~256 €</td></tr></tbody>
+  </table>
+
+  <footer>
+    Цены: Travelpayouts (Aviasales) Data API — кеш поисков за ~48 ч, ориентир по
+    тренду, не финальная цена. Карточки «через Ереван/Турцию» — сумма двух
+    отдельных билетов (Москва→хаб + хаб→пункт) за сентябрь 2026, это self-connect:
+    дешевле, но две брони и риск стыковки на пассажире. «Любой маршрут» — цельный
+    билет с одной стыковкой. Евро — по официальному курсу ЦБ РФ на день проверки.
+    Перед покупкой сверяйся на aviasales.ru.
+  </footer>
+</div>
+</body>
+</html>
