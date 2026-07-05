@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
 """
-Мониторинг цен на авиабилеты Москва -> Венеция / Тревизо, вылет в СЕНТЯБРЕ.
-Фокус на пересадках через ЕРЕВАН и ТУРЦИЮ. Цены в рублях и евро (курс ЦБ РФ на день).
+Мониторинг цен на авиабилеты → Тбилиси (TBS).
 
-Тянет цены из Travelpayouts (Aviasales) Data API, дописывает историю в
-data/history.csv и пересобирает docs/index.html (карточки + график + таблица).
-Запуск по расписанию через GitHub Actions (.github/workflows/monitor.yml).
+Показывает только ПРЯМЫЕ рейсы и рейсы с ОДНОЙ пересадкой (без self-connect).
+Цены в ₽ и € (ЦБ РФ), история в data/history.csv, отчёт в docs/index.html.
 
-ЧЕСТНЫЕ ОГОВОРКИ:
-- Data API отдаёт цены из кеша поисков Aviasales за ~48 ч, а не живые котировки.
-  Это ориентир по тренду; финальную цену проверяй на aviasales.ru по ссылке.
-- Карточки "через Ереван"/"через Турцию" = СУММА ДВУХ ОТДЕЛЬНЫХ билетов
-  (Москва->хаб + хаб->пункт) за сентябрь. Это self-connect: обычно дешевле,
-  но это две разные брони, риск стыковки на тебе. Карточка "любой маршрут" —
-  это цельный билет с одной стыковкой (какой найдёт кеш).
-- Так как месяц задаётся с точностью до сентября, сумма по хабу — индикативная
-  оценка бюджета маршрута, а не гарантированная стыковка в конкретный день.
+Главное отличие от "среднего" мониторинга — аналитика:
+  1) Тепловая карта по месяцу: какие даты вылета дешевле/дороже.
+  2) Статистика по дням недели: когда лететь выгоднее.
+  3) История запусков: как менялся минимум цены на ближайшие N дней.
+
+Запуск по расписанию через GitHub Actions (см. README).
 """
 
 import csv
@@ -25,37 +20,36 @@ import json
 import os
 import pathlib
 import sys
+from collections import defaultdict
+from statistics import mean
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
 
-# ----------------------------- Настройки -----------------------------------
+# ---------------------------- Настройки ------------------------------------
 
 TOKEN = os.environ.get("TRAVELPAYOUTS_TOKEN", "").strip()
 
-DEPART_MONTH = "2026-09"           # сентябрь 2026 (формат YYYY-MM), анализ по всему месяцу
-CURRENCY = "rub"                   # базовая валюта запроса к API
+# Месяц, по которому строим аналитику и тепловую карту (YYYY-MM).
+# Можно поменять на любой будущий месяц — скрипт сам подтянет свежие цены.
+DEPART_MONTH = "2026-09"
 
-# Откуда летим (IATA, человекочитаемое имя)
+# Горизонт «лучшей цены на ближайшие дни» (для топ-карточек):
+HORIZON_DAYS = 14
+
+# Что учитываем: 0 = прямые, 1 = с одной пересадкой.
+MAX_TRANSFERS = 1
+
+CURRENCY = "rub"
+
 ORIGINS = [
     ("MOW", "Москва"),
     ("LED", "Санкт-Петербург"),
 ]
 
-# Куда летим (IATA, человекочитаемое имя)
 DESTINATIONS = [
-    ("VCE", "Венеция (Марко Поло)"),
-    ("TSF", "Тревизо (~20 км до Венеции)"),
+    ("TBS", "Тбилиси"),
 ]
-
-# Хабы пересадки, сгруппированные. Для группы берём самый дешёвый аэропорт.
-VIA_GROUPS = [
-    ("Ереван", [("EVN", "Ереван")]),
-    ("Турция", [("IST", "Стамбул IST"), ("SAW", "Стамбул SAW")]),
-    ("Белград", [("BEG", "Белград")]),
-]
-# Винительный падеж для подписи «Через …»
-VIA_ACC = {"Ереван": "Ереван", "Турция": "Турцию", "Белград": "Белград"}
 
 BASE = pathlib.Path(__file__).resolve().parent
 DATA_DIR = BASE / "data"
@@ -66,93 +60,225 @@ API_HOST = "https://api.travelpayouts.com"
 CBR_URL = "https://www.cbr-xml-daily.ru/daily_json.js"
 
 MONTHS_RU = {
-    "01": "январь", "02": "февраль", "03": "март", "04": "апрель",
-    "05": "май", "06": "июнь", "07": "июль", "08": "август",
-    "09": "сентябрь", "10": "октябрь", "11": "ноябрь", "12": "декабрь",
+    "01": "январь",
+    "02": "февраль",
+    "03": "март",
+    "04": "апрель",
+    "05": "май",
+    "06": "июнь",
+    "07": "июль",
+    "08": "август",
+    "09": "сентябрь",
+    "10": "октябрь",
+    "11": "ноябрь",
+    "12": "декабрь",
 }
+WD_LONG = [
+    "понедельник",
+    "вторник",
+    "среда",
+    "четверг",
+    "пятница",
+    "суббота",
+    "воскресенье",
+]
+WD_SHORT = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
 
-# --------------------------- Работа с API ----------------------------------
+# ----------------------------- API ----------------------------------------
 
 
-def api_get(path: str, params: dict) -> dict:
+def api_get(path: str, params: dict[str, str]) -> dict[str, object]:
     params = {**params, "token": TOKEN}
     url = f"{API_HOST}{path}?{urlencode(params)}"
-    req = Request(url, headers={"Accept-Encoding": "identity", "User-Agent": "fare-monitor/2.0"})
+    req = Request(
+        url, headers={"Accept-Encoding": "identity", "User-Agent": "tbs-monitor/1.0"}
+    )
     with urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        raw = resp.read().decode("utf-8")
+    parsed: dict[str, object] = json.loads(raw)
+    return parsed
 
 
-def cheapest_leg(origin: str, destination: str, month: str) -> dict | None:
-    """Самый дешёвый билет origin->destination с вылетом в заданном месяце."""
+def get_eur_rate() -> float | None:
+    """Курс EUR→RUB от ЦБ РФ (₽ за 1 €). None при сбое."""
+    try:
+        req = Request(CBR_URL, headers={"User-Agent": "tbs-monitor/1.0"})
+        with urlopen(req, timeout=30) as r:
+            j: dict[str, object] = json.loads(r.read().decode("utf-8"))
+        valute = j.get("Valute")
+        if not isinstance(valute, dict):
+            return None
+        eur = valute.get("EUR")
+        if not isinstance(eur, dict):
+            return None
+        value = eur.get("Value")
+        nominal = eur.get("Nominal", 1)
+        if not isinstance(value, (int, float)):
+            return None
+        return float(value) / float(nominal)
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] CBR недоступен: {e}", file=sys.stderr)
+        return None
+
+
+# ----------------------- Сбор цен с API -----------------------------------
+
+
+def fetch_prices_month(origin: str, dest: str, month: str) -> list[dict[str, object]]:
+    """
+    Тянем ВСЕ цены на месяц одним запросом (limit=1000).
+    Возвращаем [{date, price, transfers, airline, duration, link}, ...].
+    Фильтр по пересадкам — на клиенте.
+    """
     try:
         data = api_get(
             "/aviasales/v3/prices_for_dates",
             {
-                "origin": origin, "destination": destination,
-                "departure_at": month, "currency": CURRENCY,
-                "sorting": "price", "one_way": "true", "limit": 1, "page": 1,
+                "origin": origin,
+                "destination": dest,
+                "departure_at": month,
+                "currency": CURRENCY,
+                "sorting": "price",
+                "one_way": "true",
+                "limit": "1000",
+                "page": "1",
             },
         )
     except (HTTPError, URLError, ValueError) as e:
-        print(f"[warn] {origin}->{destination} {month}: {e}", file=sys.stderr)
-        return None
-    items = data.get("data") or []
-    if not items:
-        return None
-    it = items[0]
-    link = it.get("link", "")
-    full = f"https://www.aviasales.ru{link}" if link.startswith("/") else link
-    return {
-        "price": it.get("price"),
-        "airline": it.get("airline", ""),
-        "transfers": it.get("transfers", ""),
-        "depart_date": (it.get("departure_at", "") or "")[:10],
-        "duration": it.get("duration", ""),
-        "link": full,
-    }
+        print(f"[warn] {origin}->{dest}: {e}", file=sys.stderr)
+        return []
 
+    items = data.get("data")
+    if not isinstance(items, list):
+        return []
 
-def via_group_total(origin: str, dest: str, month: str, airports: list) -> dict | None:
-    """
-    Для группы хабов считаем: min по хабам ( цена(origin->хаб) + цена(хаб->dest) ).
-    Возвращает лучший вариант или None, если ни по одному хабу нет обеих ног.
-    """
-    best = None
-    for hub_code, hub_name in airports:
-        leg1 = cheapest_leg(origin, hub_code, month)
-        leg2 = cheapest_leg(hub_code, dest, month)
-        if not leg1 or not leg2 or leg1["price"] is None or leg2["price"] is None:
+    out: list[dict[str, object]] = []
+    for it in items:
+        if not isinstance(it, dict):
             continue
-        total = leg1["price"] + leg2["price"]
-        cand = {
-            "price": total, "hub_code": hub_code, "hub_name": hub_name,
-            "leg1": leg1, "leg2": leg2,
-        }
-        if best is None or total < best["price"]:
-            best = cand
-    return best
+        date = str(it.get("departure_at") or "")[:10]
+        if not date:
+            continue
+        out.append(
+            {
+                "date": date,
+                "price": it.get("price"),
+                "transfers": it.get("transfers"),
+                "airline": it.get("airline", ""),
+                "duration": it.get("duration", ""),
+                "link": it.get("link", ""),
+            }
+        )
+    return out
 
 
-def get_eur_rate() -> float | None:
-    """Курс EUR->RUB от ЦБ РФ на текущий день (сколько рублей за 1 евро)."""
+# ----------------------- Аналитика ----------------------------------------
+
+
+def _as_float(v: object) -> float | None:
     try:
-        req = Request(CBR_URL, headers={"User-Agent": "fare-monitor/2.0"})
-        with urlopen(req, timeout=30) as r:
-            j = json.loads(r.read().decode("utf-8"))
-        v = j["Valute"]["EUR"]
-        return v["Value"] / v.get("Nominal", 1)
-    except Exception as e:  # noqa: BLE001
-        print(f"[warn] курс ЦБ недоступен: {e}", file=sys.stderr)
+        return float(str(v))
+    except (TypeError, ValueError):
         return None
 
 
-# --------------------------- История (CSV) ---------------------------------
+def split_by_route(
+    prices: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Делим на прямые и с одной пересадкой (с валидной ценой)."""
+    direct: list[dict[str, object]] = []
+    onestop: list[dict[str, object]] = []
+    for p in prices:
+        if _as_float(p.get("price")) is None:
+            continue
+        try:
+            t = int(str(p.get("transfers")))
+        except (TypeError, ValueError):
+            continue
+        if t == 0:
+            direct.append(p)
+        elif t == 1:
+            onestop.append(p)
+    return direct, onestop
 
-FIELDS = ["checked_at", "origin", "dest", "option", "hub", "price_rub", "price_eur",
-          "eur_rate", "depart_month", "detail", "link1", "link2"]
+
+def best_in_window(
+    prices: list[dict[str, object]], from_date: dt.date, days: int
+) -> dict[str, object] | None:
+    """Минимальная цена за окно [from_date, from_date + days)."""
+    end = from_date + dt.timedelta(days=days)
+    in_win: list[dict[str, object]] = []
+    for p in prices:
+        try:
+            d = dt.date.fromisoformat(str(p["date"]))
+        except (TypeError, ValueError):
+            continue
+        if from_date <= d < end and _as_float(p.get("price")) is not None:
+            in_win.append(p)
+    if not in_win:
+        return None
+    return min(in_win, key=lambda x: float(str(x["price"])))  # type: ignore[arg-type]
 
 
-def append_history(rows: list[dict]) -> None:
+def weekday_breakdown(prices: list[dict[str, object]]) -> list[dict[str, object]]:
+    """
+    Для каждого дня недели — min/avg/max/count по ценам
+    (любой тип маршрута до MAX_TRANSFERS).
+    """
+    by_wd: dict[int, list[float]] = defaultdict(list)
+    for p in prices:
+        price = _as_float(p.get("price"))
+        if price is None:
+            continue
+        try:
+            t = int(str(p.get("transfers")))
+        except (TypeError, ValueError):
+            continue
+        if t > MAX_TRANSFERS:
+            continue
+        try:
+            d = dt.date.fromisoformat(str(p["date"]))
+        except (TypeError, ValueError):
+            continue
+        by_wd[d.weekday()].append(price)
+
+    result: list[dict[str, object]] = []
+    for wd in range(7):
+        vals = by_wd.get(wd, [])
+        if not vals:
+            continue
+        result.append(
+            {
+                "wd": wd,
+                "count": len(vals),
+                "min": min(vals),
+                "avg": mean(vals),
+                "max": max(vals),
+            }
+        )
+    return result
+
+
+# ----------------------- История (CSV) ------------------------------------
+
+FIELDS = [
+    "checked_at",
+    "origin",
+    "dest",
+    "route_type",
+    "depart_date",
+    "weekday",
+    "price_rub",
+    "price_eur",
+    "eur_rate",
+    "airline",
+    "transfers",
+    "duration",
+    "link",
+]
+
+
+def append_history(rows: list[dict[str, object]]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     new = not HISTORY_CSV.exists()
     with HISTORY_CSV.open("a", newline="", encoding="utf-8") as f:
@@ -163,116 +289,510 @@ def append_history(rows: list[dict]) -> None:
             w.writerow({k: r.get(k, "") for k in FIELDS})
 
 
-def read_history() -> list[dict]:
+def read_history() -> list[dict[str, object]]:
     if not HISTORY_CSV.exists():
         return []
     with HISTORY_CSV.open(encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+        # csv.DictReader возвращает list[dict[str | Any, str | Any]],
+        # приводим к заявленному типу результата.
+        rows: list[dict[str, object]] = []
+        for r in csv.DictReader(f):
+            rows.append({k: v for k, v in r.items() if isinstance(k, str)})
+        return rows
 
 
-# --------------------------- Форматирование --------------------------------
+# ---------------------- Форматирование ------------------------------------
 
 
-def rub(n) -> str:
-    return f"{int(round(float(n))):,} ₽".replace(",", " ")
+def rub(n: object) -> str:
+    v = _as_float(n)
+    if v is None:
+        return "— ₽"
+    return f"{int(round(v)):,} ₽".replace(",", " ")
 
 
-def eur(n) -> str:
-    return f"~{int(round(float(n))):,} €".replace(",", " ")
+def eur(n: object) -> str:
+    v = _as_float(n)
+    if v is None:
+        return "— €"
+    return f"~{int(round(v)):,} €".replace(",", " ")
 
 
-def dur_str(minutes) -> str:
-    if str(minutes).isdigit():
-        m = int(minutes)
-        return f"{m // 60} ч {m % 60} мин"
-    return ""
+def dur_str(minutes: object) -> str:
+    v = _as_float(minutes)
+    if v is None:
+        return ""
+    m = int(v)
+    return f"{m // 60} ч {m % 60} мин"
 
 
-# --------------------------- Рендер страницы -------------------------------
+def aviasales_link(origin: str, dest: str, date_str: str, raw_link: object) -> str:
+    if isinstance(raw_link, str) and raw_link:
+        if raw_link.startswith("/"):
+            url = f"https://www.aviasales.ru{raw_link}"
+        else:
+            url = raw_link
+        return (
+            f'<a class="btn" href="{html.escape(url)}" target="_blank" '
+            f'rel="noopener">Aviasales →</a>'
+        )
+    if len(date_str) == 10:
+        search = f"{origin}{date_str[5:7]}{date_str[8:10]}{dest}1"
+    else:
+        search = f"{origin}{dest}"
+    return (
+        f'<a class="btn" href="https://www.aviasales.ru/search/{search}" '
+        f'target="_blank" rel="noopener">Aviasales →</a>'
+    )
 
 
-def sparkline(points: list, w: int = 560, h: int = 110, pad: int = 8) -> str:
-    pts = [float(p) for p in points if p not in ("", None)]
-    if len(pts) < 2:
-        return '<p class="muted">Мало точек для графика — появится после нескольких запусков.</p>'
-    lo, hi = min(pts), max(pts)
-    span = (hi - lo) or 1
-    n = len(pts)
-    coords = [(pad + (w - 2 * pad) * (i / (n - 1)),
-               pad + (h - 2 * pad) * (1 - (p - lo) / span)) for i, p in enumerate(pts)]
-    path = " ".join(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(coords))
-    lx, ly = coords[-1]
-    return (f'<svg viewBox="0 0 {w} {h}" class="spark" role="img" aria-label="История цены">'
-            f'<path d="{path}" fill="none" stroke="var(--accent)" stroke-width="2"/>'
-            f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="3.5" fill="var(--accent)"/></svg>')
+# ----------------------------- Рендер -------------------------------------
 
 
-def render(cards: list[dict], history: list[dict], eur_rate, month: str) -> str:
-    now = dt.datetime.now(dt.timezone.utc).astimezone(dt.timezone(dt.timedelta(hours=3)))
-    stamp = now.strftime("%d.%m.%Y %H:%M МСК")
-    yyyy, mm = month.split("-")
-    month_ru = f"{MONTHS_RU.get(mm, mm)} {yyyy}"
-    rate_str = f"курс ЦБ: 1 € = {eur_rate:.2f} ₽" if eur_rate else "курс ЦБ недоступен — только ₽"
+def heat_color(price: float, lo: float, hi: float) -> str:
+    if hi <= lo:
+        return "rgb(60,180,120)"
+    t = max(0.0, min(1.0, (price - lo) / (hi - lo)))
+    # зелёный → жёлтый → красный
+    if t < 0.5:
+        k = t / 0.5
+        r = int(60 + (224 - 60) * k)
+        g = int(180 + (170 - 180) * k)
+        b = int(120 + (60 - 120) * k)
+    else:
+        k = (t - 0.5) / 0.5
+        r = int(224 + (224 - 224) * k)
+        g = int(170 + (90 - 170) * k)
+        b = int(60 + (80 - 60) * k)
+    return f"rgb({r},{g},{b})"
 
-    # группируем карточки по секции «откуда → куда»
-    by_section: dict[str, list] = {}
-    for c in cards:
-        by_section.setdefault(c["section"], []).append(c)
 
-    sections = ""
-    for section_label, group in by_section.items():
-        cells = ""
-        for c in group:
-            hist_prices = [h["price_rub"] for h in history
-                           if h.get("origin") == c["origin_code"]
-                           and h.get("dest") == c["dest_code"]
-                           and h.get("option") == c["option"]
-                           and h.get("price_rub") not in ("", None)]
-            if c["price_rub"] is None:
-                body = '<div class="price na">нет данных в кеше</div>'
-                links = ""
-            else:
-                prev = float(hist_prices[-2]) if len(hist_prices) >= 2 else None
-                delta = ""
-                if prev is not None:
-                    d = c["price_rub"] - prev
-                    if d < 0:
-                        delta = f'<span class="delta down">▼ {rub(abs(d))}</span>'
-                    elif d > 0:
-                        delta = f'<span class="delta up">▲ {rub(d)}</span>'
-                    else:
-                        delta = '<span class="delta flat">= </span>'
-                eur_line = (f'<div class="eur">{eur(c["price_eur"])}</div>'
-                            if c["price_eur"] is not None else "")
-                lo = min(float(x) for x in hist_prices) if hist_prices else c["price_rub"]
-                body = (f'<div class="price">{rub(c["price_rub"])} {delta}</div>'
-                        f'{eur_line}'
-                        f'<div class="meta">{c["detail"]} · мин. за всё время: {rub(lo)}</div>')
-                links = c["links_html"]
-            cells += f"""
-          <article class="card {c['tag']}">
-            <div class="opt">{html.escape(c['option'])}</div>
-            {body}
-            {sparkline(hist_prices)}
-            {links}
-          </article>"""
-        sections += f'<h3>{html.escape(section_label)}</h3><div class="grid">{cells}</div>'
+def month_dates(month: str) -> list[dt.date]:
+    y, m = month.split("-")
+    y_i, m_i = int(y), int(m)
+    if m_i == 12:
+        nxt = dt.date(y_i + 1, 1, 1)
+    else:
+        nxt = dt.date(y_i, m_i + 1, 1)
+    days = (nxt - dt.timedelta(days=1)).day
+    return [dt.date(y_i, m_i, d) for d in range(1, days + 1)]
 
-    # таблица истории
-    rows_html = ""
-    for h in reversed(history[-72:]):
-        if h.get("price_rub") in ("", None):
+
+def render_calendar(prices: list[dict[str, object]], month: str) -> str:
+    """Сетка: строки=типы маршрута, столбцы=даты, ячейка=цена."""
+    # собираем минимальную цену на каждую (route_type, date)
+    by_key: dict[tuple[str, str], dict[str, object]] = {}
+    for p in prices:
+        try:
+            t = int(str(p.get("transfers")))
+        except (TypeError, ValueError):
             continue
-        pe = eur(h["price_eur"]) if h.get("price_eur") not in ("", None) else "—"
-        rows_html += (f"<tr><td>{html.escape(h['checked_at'])}</td>"
-                      f"<td>{html.escape(h.get('origin',''))}</td>"
-                      f"<td>{html.escape(h.get('dest',''))}</td>"
-                      f"<td>{html.escape(h.get('option',''))}</td>"
-                      f"<td class='num'>{rub(h['price_rub'])}</td>"
-                      f"<td class='num'>{pe}</td></tr>")
+        if t > MAX_TRANSFERS:
+            continue
+        if _as_float(p.get("price")) is None:
+            continue
+        rt = "direct" if t == 0 else "onestop"
+        key = (rt, str(p["date"]))
+        cur = by_key.get(key)
+        if cur is None or _as_float(p.get("price")) < _as_float(cur.get("price")):
+            by_key[key] = p
 
-    return TEMPLATE.format(stamp=stamp, month_ru=month_ru, rate_str=rate_str,
-                           sections=sections, rows=rows_html)
+    dates = month_dates(month)
+    if not dates:
+        return ""
+
+    all_prices = [
+        float(str(p["price"]))  # type: ignore[arg-type]
+        for p in by_key.values()
+    ]
+    lo = min(all_prices) if all_prices else 0.0
+    hi = max(all_prices) if all_prices else 1.0
+
+    # шапка: каждую неделю между датами рисуем разделитель
+    head_cells = ""
+    last_w = None
+    for d in dates:
+        w = d.isocalendar().week
+        sep = "sep-l" if w != last_w else ""
+        last_w = w
+        wd_cls = "we" if d.weekday() >= 5 else "wd"
+        head_cells += (
+            f'<div class="cal-head {wd_cls} {sep}" '
+            f'title="{d.isoformat()} ({WD_LONG[d.weekday()]})">'
+            f"{d.day:02d}</div>"
+        )
+
+    rows = ""
+    for rt_label, rt_key in [("прямой", "direct"), ("1 пересадка", "onestop")]:
+        cells = ""
+        last_w = None
+        for d in dates:
+            p = by_key.get((rt_key, d.isoformat()))
+            w = d.isocalendar().week
+            sep = "sep-l" if w != last_w else ""
+            last_w = w
+            wd_cls = "we" if d.weekday() >= 5 else "wd"
+            if p is None:
+                cell = (
+                    f'<div class="cal-cell empty {wd_cls} {sep}" '
+                    f'title="{d.isoformat()} — нет данных">—</div>'
+                )
+            else:
+                price = _as_float(p.get("price")) or 0.0
+                color = heat_color(price, lo, hi)
+                title = (
+                    f"{d.isoformat()} ({WD_LONG[d.weekday()]})\n"
+                    f"{rub(price)}\n"
+                    f"a/к {p.get('airline', '')} · "
+                    f"{int(str(p['transfers']))} перес."
+                )
+                label = f"{int(round(price)) // 1000}k"
+                if price < 10000:
+                    label = f"{int(round(price))}"
+                cell = (
+                    f'<a class="cal-cell {wd_cls} {sep}" '
+                    f'style="background:{color}" title="{title}" '
+                    f'href="#{rt_key}-{d.isoformat()}">'
+                    f"{label}</a>"
+                )
+            cells += cell
+        rows += (
+            f'<div class="cal-row">'
+            f'<div class="cal-tag">{rt_label}</div>'
+            f'<div class="cal-cells">{cells}</div>'
+            f"</div>"
+        )
+
+    return (
+        f'<div class="calendar" id="cal-{month}">'
+        f'<div class="cal-row">'
+        f'<div class="cal-tag cal-tag-h">Дата</div>'
+        f'<div class="cal-cells cal-cells-h">{head_cells}</div>'
+        f"</div>"
+        f"{rows}</div>"
+    )
+
+
+def render_weekday_table(by_wd: list[dict[str, object]], eur_rate: float | None) -> str:
+    if not by_wd:
+        return '<p class="muted">нет данных для статистики.</p>'
+    best_wd = min(by_wd, key=lambda s: float(str(s["min"])))  # type: ignore[arg-type]
+    rows = ""
+    for s in by_wd:
+        wd_i = int(str(s["wd"]))
+        cls = "best" if wd_i == int(str(best_wd["wd"])) else ""
+        wd_name = WD_LONG[wd_i]
+        rows += (
+            f'<tr class="{cls}"><td>{wd_name}</td>'
+            f'<td class="num">{s["count"]}</td>'
+            f'<td class="num">{rub(s["min"])}</td>'
+            f'<td class="num">{eur(s["min"] / eur_rate) if eur_rate else "—"}</td>'
+            f'<td class="num">{rub(s["avg"])}</td>'
+            f'<td class="num">{rub(s["max"])}</td></tr>'
+        )
+    return (
+        f'<table class="wd-table"><thead><tr>'
+        f'<th>День недели</th><th class="num">дат</th>'
+        f'<th class="num">мин ₽</th><th class="num">мин €</th>'
+        f'<th class="num">средн</th><th class="num">макс</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+    )
+
+
+def render_topcards(
+    top_by_origin: dict[str, dict[str, object | None]], eur_rate: float | None
+) -> str:
+    out = ""
+    for origin_code, origin_label in ORIGINS:
+        bucket = top_by_origin.get(origin_code, {})
+        direct = bucket.get("direct") if isinstance(bucket, dict) else None
+        onestop = bucket.get("onestop") if isinstance(bucket, dict) else None
+        out += f'<h3 class="sec">{html.escape(origin_label)}</h3><div class="grid">'
+        for label, p, tag in [
+            ("Прямой (мин. за период)", direct, "direct"),
+            ("С 1 пересадкой (мин. за период)", onestop, "onestop"),
+        ]:
+            if not isinstance(p, dict):
+                out += (
+                    f'<article class="card {tag} na">'
+                    f'<div class="opt">{label}</div>'
+                    f'<div class="price na">нет данных</div>'
+                    f'<div class="muted">— нет рейсов на ближайшие {HORIZON_DAYS} дн —</div>'
+                    f"</article>"
+                )
+                continue
+            price = _as_float(p.get("price")) or 0.0
+            eur_price = price / eur_rate if eur_rate else None
+            detail_parts = [
+                f"вылет {p.get('date', '')}",
+                f"{int(str(p['transfers']))} перес."
+                if p.get("transfers") != ""
+                else "",
+                dur_str(p.get("duration")),
+                f"a/к {p.get('airline', '')}",
+            ]
+            detail = " · ".join(x for x in detail_parts if x)
+            price_eur_html = (
+                f'<div class="eur">{eur(eur_price)}</div>'
+                if eur_price is not None
+                else ""
+            )
+            link = aviasales_link(
+                origin_code, "TBS", str(p.get("date", "")), p.get("link")
+            )
+            out += (
+                f'<article class="card {tag}">'
+                f'<div class="opt">{label}</div>'
+                f'<div class="price">{rub(price)}</div>'
+                f"{price_eur_html}"
+                f'<div class="meta">{detail}</div>'
+                f"{link}"
+                f"</article>"
+            )
+        out += "</div>"
+    return out
+
+
+def render_history_spark(history: list[dict[str, object]]) -> str:
+    pts: list[tuple[str, float]] = []
+    for row in history:
+        try:
+            price = float(str(row["price_rub"]))
+        except (TypeError, ValueError, KeyError):
+            continue
+        ts = str(row.get("checked_at", ""))
+        pts.append((ts, price))
+    if len(pts) < 2:
+        return (
+            '<p class="muted">График появится после второго запуска '
+            "(минимум 2 точки истории).</p>"
+        )
+    prices = [p for _, p in pts]
+    lo, hi = min(prices), max(prices)
+    span = (hi - lo) or 1.0
+    w_, h_, pad = 760, 150, 14
+    n = len(pts)
+    coords = [
+        (
+            pad + (w_ - 2 * pad) * i / (n - 1),
+            pad + (h_ - 2 * pad) * (1 - (p - lo) / span),
+        )
+        for i, (_, p) in enumerate(pts)
+    ]
+    path = " ".join(
+        f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(coords)
+    )
+    lx, ly = coords[-1]
+    first_ts = pts[0][0]
+    last_ts = pts[-1][0]
+    grid_y = [pad + (h_ - 2 * pad) * i / 4 for i in range(5)]
+    grid_lines = "".join(
+        f'<line x1="{pad}" x2="{w_ - pad}" y1="{y:.1f}" y2="{y:.1f}" '
+        f'stroke="var(--line)" stroke-dasharray="2,4"/>'
+        for y in grid_y
+    )
+    label_lo = (
+        f'<text x="{w_ - pad}" y="{pad + 8}" class="hi-lo">max {int(hi):,}</text>'
+    )
+    label_hi = (
+        f'<text x="{w_ - pad}" y="{h_ - pad}" class="hi-lo">min {int(lo):,}</text>'
+    )
+    return (
+        f'<svg viewBox="0 0 {w_} {h_}" class="spark" '
+        f'aria-label="История цен">'
+        f"{grid_lines}"
+        f'<path d="{path}" fill="none" stroke="var(--accent)" '
+        f'stroke-width="2"/>'
+        f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="4" '
+        f'fill="var(--accent)"/>'
+        f"{label_lo}{label_hi}</svg>"
+        f'<div class="muted">per-run min, {len(pts)} точек: '
+        f"{first_ts[:16]} → {last_ts[:16]}</div>"
+    )
+
+
+def render_history_table(history: list[dict[str, object]]) -> str:
+    rows = ""
+    count = 0
+    for h in reversed(history):
+        try:
+            price = float(str(h["price_rub"]))
+        except (TypeError, ValueError, KeyError):
+            continue
+        if h.get("depart_date") not in ("", None):
+            date_label = (
+                f"{h.get('depart_date', '')} "
+                f"({WD_SHORT[int(dt.date.fromisoformat(str(h['depart_date'])).weekday())]})"
+            )
+        else:
+            date_label = ""
+        rt = "прямой" if h.get("route_type") == "direct" else "1 перес."
+        eur_val = ""
+        if h.get("eur_rate") not in ("", None) and h.get("price_eur") not in ("", None):
+            eur_val = str(h["price_eur"])
+        # Простой показ в ₽ (price_eur в CSV — это цена в евро, не отформатированная)
+        try:
+            eur_int = int(float(str(h.get("price_eur", ""))))
+            eur_label = f"~{eur_int:,} €".replace(",", " ")
+        except (TypeError, ValueError):
+            eur_label = "—"
+        rows += (
+            f'<tr><td class="ts">{html.escape(str(h.get("checked_at", "")))}</td>'
+            f"<td>{html.escape(str(h.get('origin', '')))}</td>"
+            f"<td>{html.escape(str(h.get('route_type', '')))}</td>"
+            f"<td>{html.escape(date_label)}</td>"
+            f'<td class="num">{rub(price)}</td>'
+            f'<td class="num">{eur_label}</td></tr>'
+        )
+        count += 1
+        if count >= 60:
+            break
+    return (
+        f'<table class="hist-table"><thead><tr>'
+        f"<th>Проверено (UTC)</th><th>Из</th><th>Тип</th>"
+        f'<th>Вылет</th><th class="num">₽</th>'
+        f'<th class="num">€</th></tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+    )
+
+
+# ---------------------------- main ----------------------------------------
+
+
+def to_eur(rub_val: object, rate: float | None) -> float | None:
+    f = _as_float(rub_val)
+    if f is None or rate is None:
+        return None
+    return f / rate
+
+
+def build_topcards(
+    prices_by_origin: dict[str, list[dict[str, object]]], today: dt.date
+) -> dict[str, dict[str, dict[str, object] | None]]:
+    """
+    Для каждого origin -> {"direct": лучший за горизонт, "onestop": ...}.
+    """
+    result: dict[str, dict[str, dict[str, object] | None]] = {}
+    for origin_code, _ in ORIGINS:
+        prices = prices_by_origin.get(origin_code, [])
+        direct, onestop = split_by_route(prices)
+        result[origin_code] = {
+            "direct": best_in_window(direct, today, HORIZON_DAYS),
+            "onestop": best_in_window(onestop, today, HORIZON_DAYS),
+        }
+    return result
+
+
+def main() -> int:
+    if not TOKEN:
+        print("ОШИБКА: TRAVELPAYOUTS_TOKEN не задан.", file=sys.stderr)
+        return 1
+
+    today = dt.date.today()
+    eur_rate = get_eur_rate()
+
+    print(f"[info] месяц={DEPART_MONTH}, сегодня={today}, курс EUR={eur_rate}")
+    prices_by_origin: dict[str, list[dict[str, object]]] = {}
+    for origin_code, _ in ORIGINS:
+        for dest_code, _ in DESTINATIONS:
+            prices_by_origin[origin_code] = fetch_prices_month(
+                origin_code, dest_code, DEPART_MONTH
+            )
+
+    # 1) пишем в историю
+    checked_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M")
+    hist_rows: list[dict[str, object]] = []
+    for origin_code, _ in ORIGINS:
+        for p in prices_by_origin.get(origin_code, []):
+            if _as_float(p.get("price")) is None:
+                continue
+            try:
+                t = int(str(p.get("transfers")))
+            except (TypeError, ValueError):
+                continue
+            if t > MAX_TRANSFERS:
+                continue
+            rt = "direct" if t == 0 else "onestop"
+            depart_date = str(p.get("date", ""))
+            try:
+                wd = dt.date.fromisoformat(depart_date).weekday()
+                wd_str = WD_SHORT[wd]
+            except ValueError:
+                wd_str = ""
+            eur_val = to_eur(p.get("price"), eur_rate)
+            hist_rows.append(
+                {
+                    "checked_at": checked_at,
+                    "origin": origin_code,
+                    "dest": DESTINATIONS[0][0],
+                    "route_type": rt,
+                    "depart_date": depart_date,
+                    "weekday": wd_str,
+                    "price_rub": int(round(float(str(p["price"])))),  # type: ignore[arg-type]
+                    "price_eur": int(round(eur_val)) if eur_val is not None else "",
+                    "eur_rate": f"{eur_rate:.4f}" if eur_rate else "",
+                    "airline": p.get("airline", ""),
+                    "transfers": t,
+                    "duration": p.get("duration", ""),
+                    "link": p.get("link", ""),
+                }
+            )
+    if hist_rows:
+        append_history(hist_rows)
+
+    # 2) собираем аналитику
+    history = read_history()
+    top_by_origin = build_topcards(prices_by_origin, today)
+
+    # объединяем для календаря/недельной статистики (без фильтра по origins)
+    all_prices: list[dict[str, object]] = []
+    for _, lst in prices_by_origin.items():
+        all_prices.extend(lst)
+    wd_stats = weekday_breakdown(all_prices)
+
+    # шаблон
+    now = dt.datetime.now(dt.timezone.utc).astimezone(
+        dt.timezone(dt.timedelta(hours=3))
+    )
+    stamp = now.strftime("%d.%m.%Y %H:%M МСК")
+    y, m = DEPART_MONTH.split("-")
+    month_ru = f"{MONTHS_RU.get(m, m)} {y}"
+    rate_str = (
+        f"курс ЦБ: 1 € = {eur_rate:.2f} ₽"
+        if eur_rate
+        else "курс ЦБ недоступен — цены только в ₽"
+    )
+
+    html_doc = render_report(
+        top_by_origin=top_by_origin,
+        prices=all_prices,
+        wd_stats=wd_stats,
+        history=history,
+        eur_rate=eur_rate,
+        month_ru=month_ru,
+        month_iso=DEPART_MONTH,
+        stamp=stamp,
+        rate_str=rate_str,
+    )
+
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    (DOCS_DIR / "index.html").write_text(html_doc, encoding="utf-8")
+
+    priced = sum(
+        1
+        for p in all_prices
+        if _as_float(p.get("price")) is not None
+        and (lambda x: x <= MAX_TRANSFERS)(  # type: ignore[arg-type]
+            int(str(p.get("transfers")))
+            if str(p.get("transfers", "")).lstrip("-").isdigit()
+            else 99
+        )
+    )
+    print(
+        f"[ok] карточек с ценой: {priced} (≤{MAX_TRANSFERS} перес.), "
+        f"история: {len(history)} строк"
+    )
+    return 0
 
 
 TEMPLATE = """<!DOCTYPE html>
@@ -280,80 +800,131 @@ TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Мониторинг цен · Москва → Венеция · сентябрь</title>
+<title>Мониторинг цен · → Тбилиси · {month_ru}</title>
 <style>
   :root {{
-    --bg:#12151c; --panel:#1a1f29; --ink:#e8eaed; --muted:#8b93a3;
-    --line:#2a313d; --accent:#e0a03e; --down:#5fbf7f; --up:#e06a5c;
-    --evn:#7fa8d0; --tur:#d08f7f; --beg:#9db07f;
+    --bg:#101216; --panel:#181c24; --ink:#e8eaed; --muted:#8b93a3;
+    --line:#262b36; --accent:#e0a03e; --down:#5fbf7f; --up:#e06a5c;
+    --direct:#6dc3a5; --onestop:#e0a03e;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }}
   * {{ box-sizing:border-box; }}
   body {{ margin:0; background:var(--bg); color:var(--ink);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    line-height:1.5; padding:32px 20px 64px; }}
-  .wrap {{ max-width:820px; margin:0 auto; }}
-  header {{ border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:8px; }}
+    line-height:1.5; padding:28px 18px 64px; }}
+  .wrap {{ max-width:960px; margin:0 auto; }}
+  header {{ border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:6px; }}
   .eyebrow {{ font-family:var(--mono); font-size:12px; letter-spacing:.14em;
     text-transform:uppercase; color:var(--muted); }}
-  h1 {{ font-size:26px; margin:6px 0 4px; font-weight:650; }}
+  h1 {{ font-size:24px; margin:6px 0 4px; font-weight:650; }}
+  h2 {{ font-size:18px; margin:34px 0 8px; font-weight:600; }}
+  h3.sec {{ font-size:15px; margin:22px 0 8px; font-weight:600;
+    color:var(--muted); letter-spacing:.04em; }}
   .stamp {{ font-family:var(--mono); font-size:13px; color:var(--muted); }}
-  h3 {{ font-size:15px; margin:30px 0 12px; font-weight:600; }}
-  .grid {{ display:grid; gap:14px; grid-template-columns:1fr; }}
-  @media(min-width:520px){{ .grid {{ grid-template-columns:1fr 1fr; }} }}
-  @media(min-width:900px){{ .grid {{ grid-template-columns:repeat(4,1fr); }} }}
+  .grid {{ display:grid; gap:12px; grid-template-columns:1fr; margin-bottom:4px; }}
+  @media(min-width:560px){{ .grid {{ grid-template-columns:1fr 1fr; }} }}
   .card {{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:16px; border-top:3px solid var(--line); }}
-  .card.evn {{ border-top-color:var(--evn); }}
-  .card.tur {{ border-top-color:var(--tur); }}
-  .card.beg {{ border-top-color:var(--beg); }}
-  .card.any {{ border-top-color:var(--accent); }}
-  .opt {{ font-size:12px; font-family:var(--mono); text-transform:uppercase;
+    padding:16px; border-top:3px solid var(--line); position:relative; }}
+  .card.direct {{ border-top-color:var(--direct); }}
+  .card.onestop {{ border-top-color:var(--onestop); }}
+  .card.na {{ opacity:.7; }}
+  .opt {{ font-size:11px; font-family:var(--mono); text-transform:uppercase;
     letter-spacing:.06em; color:var(--muted); margin-bottom:10px; }}
-  .price {{ font-family:var(--mono); font-size:23px; font-weight:600; }}
-  .price.na {{ color:var(--muted); font-size:16px; }}
-  .eur {{ font-family:var(--mono); font-size:14px; color:var(--muted); margin-top:2px; }}
-  .delta {{ font-size:12px; font-family:var(--mono); margin-left:4px; }}
-  .delta.down {{ color:var(--down); }} .delta.up {{ color:var(--up); }} .delta.flat {{ color:var(--muted); }}
+  .price {{ font-family:var(--mono); font-size:22px; font-weight:600; }}
+  .price.na {{ color:var(--muted); font-size:15px; font-weight:500; }}
+  .eur {{ font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:2px; }}
   .meta {{ color:var(--muted); font-size:12px; margin:8px 0 10px; }}
-  .spark {{ width:100%; height:auto; display:block; margin:4px 0 12px; }}
   .btn {{ display:inline-block; font-size:12px; color:var(--accent); text-decoration:none;
     border:1px solid var(--line); border-radius:7px; padding:5px 10px; margin:2px 4px 2px 0; }}
   .btn:hover {{ border-color:var(--accent); }}
   .muted {{ color:var(--muted); font-size:12px; }}
-  table {{ width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }}
-  th,td {{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); }}
+
+  /* Календарь */
+  .calendar {{ background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:14px; overflow-x:auto; }}
+  .cal-row {{ display:flex; align-items:stretch; min-width:fit-content; }}
+  .cal-tag {{ flex:0 0 110px; font-family:var(--mono); font-size:11px;
+    color:var(--muted); text-transform:uppercase; letter-spacing:.06em;
+    display:flex; align-items:center; padding-right:10px; }}
+  .cal-tag-h {{ color:var(--ink); font-weight:600; }}
+  .cal-cells {{ display:grid; grid-auto-flow:column;
+    grid-auto-columns:34px; gap:2px; flex:1; }}
+  .cal-head {{ height:24px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    border-top:1px solid var(--line); padding-top:2px; }}
+  .cal-head.we {{ color:var(--accent); opacity:.7; }}
+  .cal-head.sep-l {{ border-left:1px dashed var(--line); padding-left:4px; }}
+  .cal-cell {{ height:34px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:11px; color:#101216;
+    text-decoration:none; border-radius:4px; font-weight:600; }}
+  .cal-cell.we {{ box-shadow:inset 0 0 0 1px #00000022; }}
+  .cal-cell.sep-l {{ margin-left:3px; }}
+  .cal-cell.empty {{ background:transparent; color:var(--muted); font-weight:400;
+    border:1px dashed var(--line); }}
+  .cal-cell.empty.we {{ color:var(--muted); }}
+
+  /* Таблицы */
+  table {{ width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }}
+  th,td {{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }}
   th {{ color:var(--muted); font-weight:500; font-family:var(--mono); font-size:11px;
     text-transform:uppercase; letter-spacing:.06em; }}
   td.num,th.num {{ text-align:right; font-family:var(--mono); }}
+  tr.best td {{ color:var(--down); }}
+  .hist-table td.ts {{ font-family:var(--mono); color:var(--muted); font-size:12px; }}
+  .wd-table {{ background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; }}
+
+  .spark {{ width:100%; height:auto; display:block; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:10px; }}
+  .spark text.hi-lo {{ fill:var(--muted); font:600 10px var(--mono); text-anchor:end; }}
+
   footer {{ margin-top:36px; color:var(--muted); font-size:12px;
-    border-top:1px solid var(--line); padding-top:16px; }}
+    border-top:1px solid var(--line); padding-top:14px; }}
   a {{ color:var(--accent); }}
+  .legend {{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px;
+    color:var(--muted); margin-top:6px; }}
+  .swatch {{ display:inline-block; width:14px; height:14px; border-radius:3px;
+    vertical-align:middle; margin-right:4px; }}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Fare monitor · обновление каждые 8 ч · вылет {month_ru}</div>
-    <h1>Москва · СПб → Венеция / Тревизо</h1>
-    <div class="stamp">Проверка: {stamp} · {rate_str}</div>
+    <div class="eyebrow">Fare monitor · → Тбилиси · {month_ru}</div>
+    <h1>Прямые и с одной пересадкой — в Тбилиси</h1>
+    <div class="stamp">Проверено: {stamp} · {rate_str}</div>
+    <div class="legend">
+      <span><span class="swatch" style="background:rgb(60,180,120)"></span>дешевле</span>
+      <span><span class="swatch" style="background:rgb(224,170,60)"></span>средне</span>
+      <span><span class="swatch" style="background:rgb(224,90,80)"></span>дороже</span>
+      <span><span class="swatch" style="background:transparent;border:1px dashed var(--line)"></span>нет данных</span>
+      <span>· граница между неделями — пунктир</span>
+    </div>
   </header>
 
-  {sections}
+  <h2>Лучшие цены на ближайшие {horizon} дней</h2>
+  {topcards}
 
-  <h3>История проверок</h3>
-  <table>
-    <thead><tr><th>Проверено (UTC)</th><th>Откуда</th><th>Пункт</th><th>Маршрут</th>
-    <th class="num">₽</th><th class="num">€</th></tr></thead>
-    <tbody>{rows}</tbody>
-  </table>
+  <h2>Календарь цен — {month_ru}</h2>
+  <p class="muted">Чем зеленее — тем дешевле (по всему столбцу за месяц).
+    Кликните на ячейку, чтобы получить ссылку на Aviasales.</p>
+  {calendar}
+
+  <h2>Статистика по дням недели</h2>
+  <p class="muted">Лучший день подсвечен. Анализ по всем рейсам ≤ {max_t} пересадок
+    за выбранный месяц.</p>
+  {weekday_table}
+
+  <h2>История проверок — динамика минимума</h2>
+  {history_chart}
+
+  <h2>Таблица последних замеров</h2>
+  {history_table}
 
   <footer>
-    Цены: Travelpayouts (Aviasales) Data API — кеш поисков за ~48 ч, ориентир по
-    тренду, не финальная цена. Карточки «через Ереван/Турцию» — сумма двух
-    отдельных билетов (Москва→хаб + хаб→пункт) за {month_ru}, это self-connect:
-    дешевле, но две брони и риск стыковки на пассажире. «Любой маршрут» — цельный
-    билет с одной стыковкой. Евро — по официальному курсу ЦБ РФ на день проверки.
+    Цены: Travelpayouts (Aviasales) Data API — кеш поисков за ~48 ч, ориентир
+    по тренду, не финальная цена. Учитываются только прямые рейсы и рейсы с
+    одной пересадкой (без self-connect). Евро — по официальному курсу ЦБ РФ.
     Перед покупкой сверяйся на aviasales.ru.
   </footer>
 </div>
@@ -362,112 +933,35 @@ TEMPLATE = """<!DOCTYPE html>
 """
 
 
-# ------------------------------- main --------------------------------------
-
-
-def build_cards(eur_rate) -> list[dict]:
-    def to_eur(rub_val):
-        return None if (eur_rate is None or rub_val is None) else rub_val / eur_rate
-
-    cards = []
-    for origin_code, origin_label in ORIGINS:
-        for dest_code, dest_label in DESTINATIONS:
-            section = f"{origin_label} → {dest_label}"
-            # 1) любой маршрут (цельный билет)
-            any_r = cheapest_leg(origin_code, dest_code, DEPART_MONTH)
-            if any_r and any_r["price"] is not None:
-                t = any_r["transfers"]
-                t_str = "прямой" if str(t) == "0" else f"{t} перес." if t != "" else ""
-                detail = " · ".join(x for x in [f"вылет {any_r['depart_date']}", t_str,
-                                                dur_str(any_r["duration"]),
-                                                f"a/к {any_r['airline']}"] if x)
-                links = (f'<a class="btn" href="{html.escape(any_r["link"])}" target="_blank" '
-                         f'rel="noopener">Aviasales →</a>' if any_r["link"] else "")
-                cards.append({
-                    "origin_code": origin_code, "dest_code": dest_code,
-                    "dest_label": dest_label, "section": section,
-                    "option": "Любой маршрут (мин.)", "tag": "any",
-                    "route_key": f"{origin_code}|{dest_code}|any",
-                    "price_rub": any_r["price"], "price_eur": to_eur(any_r["price"]),
-                    "detail": detail, "links_html": links,
-                })
-            else:
-                cards.append({"origin_code": origin_code, "dest_code": dest_code,
-                              "dest_label": dest_label, "section": section,
-                              "option": "Любой маршрут (мин.)", "tag": "any",
-                              "route_key": f"{origin_code}|{dest_code}|any", "price_rub": None,
-                              "price_eur": None, "detail": "", "links_html": ""})
-
-            # 2) через хабы (Ереван / Турция / Белград) — сумма двух билетов
-            for group_name, airports in VIA_GROUPS:
-                tag = {"Ереван": "evn", "Турция": "tur", "Белград": "beg"}.get(group_name, "any")
-                best = via_group_total(origin_code, dest_code, DEPART_MONTH, airports)
-                if best:
-                    l1, l2 = best["leg1"], best["leg2"]
-                    detail = f'{best["hub_name"]}: {rub(l1["price"])} + {rub(l2["price"])}'
-                    links = ""
-                    if l1["link"]:
-                        links += (f'<a class="btn" href="{html.escape(l1["link"])}" '
-                                  f'target="_blank" rel="noopener">'
-                                  f'{origin_code}→{best["hub_code"]} →</a>')
-                    if l2["link"]:
-                        links += (f'<a class="btn" href="{html.escape(l2["link"])}" '
-                                  f'target="_blank" rel="noopener">'
-                                  f'{best["hub_code"]}→{dest_code} →</a>')
-                    cards.append({
-                        "origin_code": origin_code, "dest_code": dest_code,
-                        "dest_label": dest_label, "section": section,
-                        "option": f"Через {VIA_ACC.get(group_name, group_name)}", "tag": tag,
-                        "route_key": f"{origin_code}|{dest_code}|{group_name}",
-                        "hub": best["hub_code"],
-                        "price_rub": best["price"], "price_eur": to_eur(best["price"]),
-                        "detail": detail, "links_html": links,
-                    })
-                else:
-                    cards.append({"origin_code": origin_code, "dest_code": dest_code,
-                                  "dest_label": dest_label, "section": section,
-                                  "option": f"Через {VIA_ACC.get(group_name, group_name)}",
-                                  "tag": tag,
-                                  "route_key": f"{origin_code}|{dest_code}|{group_name}",
-                                  "hub": "", "price_rub": None, "price_eur": None,
-                                  "detail": "", "links_html": ""})
-    return cards
-
-
-def main() -> int:
-    if not TOKEN:
-        print("ОШИБКА: не задан TRAVELPAYOUTS_TOKEN (секрет GitHub / переменная окружения).",
-              file=sys.stderr)
-        return 1
-
-    eur_rate = get_eur_rate()
-    cards = build_cards(eur_rate)
-
-    checked_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M")
-    hist_rows = []
-    for c in cards:
-        if c["price_rub"] is None:
-            continue
-        hist_rows.append({
-            "checked_at": checked_at, "origin": c["origin_code"], "dest": c["dest_code"],
-            "option": c["option"], "hub": c.get("hub", ""),
-            "price_rub": int(round(c["price_rub"])),
-            "price_eur": int(round(c["price_eur"])) if c["price_eur"] is not None else "",
-            "eur_rate": f"{eur_rate:.4f}" if eur_rate else "",
-            "depart_month": DEPART_MONTH, "detail": c["detail"],
-            "link1": "", "link2": "",
-        })
-    if hist_rows:
-        append_history(hist_rows)
-
-    history = read_history()
-    DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    (DOCS_DIR / "index.html").write_text(
-        render(cards, history, eur_rate, DEPART_MONTH), encoding="utf-8")
-    priced = sum(1 for c in cards if c["price_rub"] is not None)
-    print(f"Готово: {priced}/{len(cards)} карточек с ценой, история — {len(history)} строк, "
-          f"курс EUR={eur_rate}.")
-    return 0
+def render_report(
+    *,
+    top_by_origin: dict[str, dict[str, dict[str, object] | None]],
+    prices: list[dict[str, object]],
+    wd_stats: list[dict[str, object]],
+    history: list[dict[str, object]],
+    eur_rate: float | None,
+    month_ru: str,
+    month_iso: str,
+    stamp: str,
+    rate_str: str,
+) -> str:
+    topcards = render_topcards(top_by_origin, eur_rate)
+    calendar = render_calendar(prices, month_iso)
+    weekday_table = render_weekday_table(wd_stats, eur_rate)
+    history_chart = render_history_spark(history)
+    history_table = render_history_table(history)
+    return TEMPLATE.format(
+        month_ru=month_ru,
+        stamp=stamp,
+        rate_str=rate_str,
+        horizon=HORIZON_DAYS,
+        max_t=MAX_TRANSFERS,
+        topcards=topcards,
+        calendar=calendar,
+        weekday_table=weekday_table,
+        history_chart=history_chart,
+        history_table=history_table,
+    )
 
 
 if __name__ == "__main__":
