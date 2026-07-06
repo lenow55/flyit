@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг цен · → Тбилиси · август 2026</title>
+<style>
+  :root {
+    --bg:#101216; --panel:#181c24; --ink:#e8eaed; --muted:#8b93a3;
+    --line:#262b36; --accent:#e0a03e; --down:#5fbf7f; --up:#e06a5c;
+    --direct:#6dc3a5; --onestop:#e0a03e;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5; padding:28px 18px 64px; }
+  .wrap { max-width:960px; margin:0 auto; }
+  header { border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:6px; }
+  .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); }
+  h1 { font-size:24px; margin:6px 0 4px; font-weight:650; }
+  h2 { font-size:18px; margin:34px 0 8px; font-weight:600; }
+  h3.sec { font-size:15px; margin:22px 0 8px; font-weight:600;
+    color:var(--muted); letter-spacing:.04em; }
+  .stamp { font-family:var(--mono); font-size:13px; color:var(--muted); }
+  .grid { display:grid; gap:12px; grid-template-columns:1fr; margin-bottom:4px; }
+  @media(min-width:560px){ .grid { grid-template-columns:1fr 1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px; border-top:3px solid var(--line); position:relative; }
+  .card.direct { border-top-color:var(--direct); }
+  .card.onestop { border-top-color:var(--onestop); }
+  .card.na { opacity:.7; }
+  .opt { font-size:11px; font-family:var(--mono); text-transform:uppercase;
+    letter-spacing:.06em; color:var(--muted); margin-bottom:10px; }
+  .price { font-family:var(--mono); font-size:22px; font-weight:600; }
+  .price.na { color:var(--muted); font-size:15px; font-weight:500; }
+  .eur { font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:2px; }
+  .meta { color:var(--muted); font-size:12px; margin:8px 0 10px; }
+  .btn { display:inline-block; font-size:12px; color:var(--accent); text-decoration:none;
+    border:1px solid var(--line); border-radius:7px; padding:5px 10px; margin:2px 4px 2px 0; }
+  .btn:hover { border-color:var(--accent); }
+  .muted { color:var(--muted); font-size:12px; }
+
+  /* Календарь */
+  .calendar { background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:14px; overflow-x:auto; }
+  .cal-row { display:flex; align-items:stretch; min-width:fit-content; }
+  .cal-tag { flex:0 0 110px; font-family:var(--mono); font-size:11px;
+    color:var(--muted); text-transform:uppercase; letter-spacing:.06em;
+    display:flex; align-items:center; padding-right:10px; }
+  .cal-tag-h { color:var(--ink); font-weight:600; }
+  .cal-cells { display:grid; grid-auto-flow:column;
+    grid-auto-columns:34px; gap:2px; flex:1; }
+  .cal-head { height:24px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    border-top:1px solid var(--line); padding-top:2px; }
+  .cal-head.we { color:var(--accent); opacity:.7; }
+  .cal-head.sep-l { border-left:1px dashed var(--line); padding-left:4px; }
+  .cal-cell { height:34px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:11px; color:#101216;
+    text-decoration:none; border-radius:4px; font-weight:600; }
+  .cal-cell.we { box-shadow:inset 0 0 0 1px #00000022; }
+  .cal-cell.sep-l { margin-left:3px; }
+  .cal-cell.empty { background:transparent; color:var(--muted); font-weight:400;
+    border:1px dashed var(--line); }
+  .cal-cell.empty.we { color:var(--muted); }
+
+  /* Таблицы */
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-family:var(--mono); font-size:11px;
+    text-transform:uppercase; letter-spacing:.06em; }
+  td.num,th.num { text-align:right; font-family:var(--mono); }
+  tr.best td { color:var(--down); }
+  .hist-table td.ts { font-family:var(--mono); color:var(--muted); font-size:12px; }
+  .wd-table { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; }
+
+  .spark { width:100%; height:auto; display:block; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .spark text.hi-lo { fill:var(--muted); font:600 10px var(--mono); text-anchor:end; }
+
+  footer { margin-top:36px; color:var(--muted); font-size:12px;
+    border-top:1px solid var(--line); padding-top:14px; }
+  a { color:var(--accent); }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px;
+    color:var(--muted); margin-top:6px; }
+  .swatch { display:inline-block; width:14px; height:14px; border-radius:3px;
+    vertical-align:middle; margin-right:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Fare monitor · → Тбилиси · август 2026</div>
+    <h1>Прямые и с одной пересадкой — в Тбилиси</h1>
+    <div class="stamp">Проверено: 06.07.2026 05:07 МСК · курс ЦБ: 1 € = 88.03 ₽</div>
+    <div class="legend">
+      <span><span class="swatch" style="background:rgb(60,180,120)"></span>дешевле</span>
+      <span><span class="swatch" style="background:rgb(224,170,60)"></span>средне</span>
+      <span><span class="swatch" style="background:rgb(224,90,80)"></span>дороже</span>
+      <span><span class="swatch" style="background:transparent;border:1px dashed var(--line)"></span>нет данных</span>
+      <span>· граница между неделями — пунктир</span>
+    </div>
+  </header>
+
+  <h2>Лучшие цены на ближайшие 14 дней</h2>
+  <h3 class="sec">Нижний Новгород</h3><div class="grid"><article class="card direct na"><div class="opt">Прямой (мин. за период)</div><div class="price na">нет данных</div><div class="muted">— нет рейсов на ближайшие 14 дн —</div></article><article class="card onestop na"><div class="opt">С 1 пересадкой (мин. за период)</div><div class="price na">нет данных</div><div class="muted">— нет рейсов на ближайшие 14 дн —</div></article></div>
+
+  <h2>Календарь цен — август 2026</h2>
+  <p class="muted">Чем зеленее — тем дешевле (по всему столбцу за месяц).
+    Кликните на ячейку, чтобы получить ссылку на Aviasales.</p>
+  <div class="calendar" id="cal-2026-08"><div class="cal-row"><div class="cal-tag cal-tag-h">Дата</div><div class="cal-cells cal-cells-h"><div class="cal-head we sep-l" title="2026-08-01 (суббота)">01</div><div class="cal-head we " title="2026-08-02 (воскресенье)">02</div><div class="cal-head wd sep-l" title="2026-08-03 (понедельник)">03</div><div class="cal-head wd " title="2026-08-04 (вторник)">04</div><div class="cal-head wd " title="2026-08-05 (среда)">05</div><div class="cal-head wd " title="2026-08-06 (четверг)">06</div><div class="cal-head wd " title="2026-08-07 (пятница)">07</div><div class="cal-head we " title="2026-08-08 (суббота)">08</div><div class="cal-head we " title="2026-08-09 (воскресенье)">09</div><div class="cal-head wd sep-l" title="2026-08-10 (понедельник)">10</div><div class="cal-head wd " title="2026-08-11 (вторник)">11</div><div class="cal-head wd " title="2026-08-12 (среда)">12</div><div class="cal-head wd " title="2026-08-13 (четверг)">13</div><div class="cal-head wd " title="2026-08-14 (пятница)">14</div><div class="cal-head we " title="2026-08-15 (суббота)">15</div><div class="cal-head we " title="2026-08-16 (воскресенье)">16</div><div class="cal-head wd sep-l" title="2026-08-17 (понедельник)">17</div><div class="cal-head wd " title="2026-08-18 (вторник)">18</div><div class="cal-head wd " title="2026-08-19 (среда)">19</div><div class="cal-head wd " title="2026-08-20 (четверг)">20</div><div class="cal-head wd " title="2026-08-21 (пятница)">21</div><div class="cal-head we " title="2026-08-22 (суббота)">22</div><div class="cal-head we " title="2026-08-23 (воскресенье)">23</div><div class="cal-head wd sep-l" title="2026-08-24 (понедельник)">24</div><div class="cal-head wd " title="2026-08-25 (вторник)">25</div><div class="cal-head wd " title="2026-08-26 (среда)">26</div><div class="cal-head wd " title="2026-08-27 (четверг)">27</div><div class="cal-head wd " title="2026-08-28 (пятница)">28</div><div class="cal-head we " title="2026-08-29 (суббота)">29</div><div class="cal-head we " title="2026-08-30 (воскресенье)">30</div><div class="cal-head wd sep-l" title="2026-08-31 (понедельник)">31</div></div></div><div class="cal-row"><div class="cal-tag">прямой</div><div class="cal-cells"><div class="cal-cell empty we sep-l" title="2026-08-01 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-02 — нет данных">—</div><div class="cal-cell empty wd sep-l" title="2026-08-03 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-04 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(169,173,79)" title="2026-08-05 (среда)
+19 905 ₽
+a/к WZ · 0 перес." href="#direct-2026-08-05">19k</a><div class="cal-cell empty wd " title="2026-08-06 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-07 — нет данных">—</div><a class="cal-cell we " style="background:rgb(169,173,79)" title="2026-08-08 (суббота)
+19 905 ₽
+a/к WZ · 0 перес." href="#direct-2026-08-08">19k</a><div class="cal-cell empty we " title="2026-08-09 — нет данных">—</div><div class="cal-cell empty wd sep-l" title="2026-08-10 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-11 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(74,179,114)" title="2026-08-12 (среда)
+17 340 ₽
+a/к WZ · 0 перес." href="#direct-2026-08-12">17k</a><div class="cal-cell empty wd " title="2026-08-13 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-14 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-15 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-16 — нет данных">—</div><div class="cal-cell empty wd sep-l" title="2026-08-17 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-18 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(74,179,114)" title="2026-08-19 (среда)
+17 338 ₽
+a/к WZ · 0 перес." href="#direct-2026-08-19">17k</a><div class="cal-cell empty wd " title="2026-08-20 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-21 — нет данных">—</div><a class="cal-cell we " style="background:rgb(74,179,114)" title="2026-08-22 (суббота)
+17 338 ₽
+a/к WZ · 0 перес." href="#direct-2026-08-22">17k</a><div class="cal-cell empty we " title="2026-08-23 — нет данных">—</div><div class="cal-cell empty wd sep-l" title="2026-08-24 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-25 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-26 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-27 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-28 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-29 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-30 — нет данных">—</div><div class="cal-cell empty wd sep-l" title="2026-08-31 — нет данных">—</div></div></div><div class="cal-row"><div class="cal-tag">1 пересадка</div><div class="cal-cells"><a class="cal-cell we sep-l" style="background:rgb(138,175,91)" title="2026-08-01 (суббота)
+19 072 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-01">19k</a><a class="cal-cell we " style="background:rgb(224,125,71)" title="2026-08-02 (воскресенье)
+23 809 ₽
+a/к RT · 1 перес." href="#onestop-2026-08-02">23k</a><a class="cal-cell wd sep-l" style="background:rgb(205,171,66)" title="2026-08-03 (понедельник)
+20 852 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-03">20k</a><a class="cal-cell wd " style="background:rgb(206,171,66)" title="2026-08-04 (вторник)
+20 880 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-04">20k</a><div class="cal-cell empty wd " title="2026-08-05 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(224,90,80)" title="2026-08-06 (четверг)
+25 759 ₽
+a/к FV · 1 перес." href="#onestop-2026-08-06">25k</a><div class="cal-cell empty wd " title="2026-08-07 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-08 — нет данных">—</div><a class="cal-cell we " style="background:rgb(224,160,62)" title="2026-08-09 (воскресенье)
+21 861 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-09">21k</a><a class="cal-cell wd sep-l" style="background:rgb(205,171,66)" title="2026-08-10 (понедельник)
+20 852 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-10">20k</a><a class="cal-cell wd " style="background:rgb(99,177,105)" title="2026-08-11 (вторник)
+18 005 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-11">18k</a><div class="cal-cell empty wd " title="2026-08-12 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(224,139,67)" title="2026-08-13 (четверг)
+23 048 ₽
+a/к FV · 1 перес." href="#onestop-2026-08-13">23k</a><a class="cal-cell wd " style="background:rgb(224,146,65)" title="2026-08-14 (пятница)
+22 633 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-14">22k</a><a class="cal-cell we " style="background:rgb(135,175,92)" title="2026-08-15 (суббота)
+18 988 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-15">18k</a><a class="cal-cell we " style="background:rgb(224,164,61)" title="2026-08-16 (воскресенье)
+21 674 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-16">21k</a><a class="cal-cell wd sep-l" style="background:rgb(98,177,105)" title="2026-08-17 (понедельник)
+18 003 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-17">18k</a><a class="cal-cell wd " style="background:rgb(98,177,105)" title="2026-08-18 (вторник)
+18 003 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-18">18k</a><div class="cal-cell empty wd " title="2026-08-19 — нет данных">—</div><div class="cal-cell empty wd " title="2026-08-20 — нет данных">—</div><a class="cal-cell wd " style="background:rgb(224,161,62)" title="2026-08-21 (пятница)
+21 849 ₽
+a/к FV · 1 перес." href="#onestop-2026-08-21">21k</a><div class="cal-cell empty we " title="2026-08-22 — нет данных">—</div><div class="cal-cell empty we " title="2026-08-23 — нет данных">—</div><a class="cal-cell wd sep-l" style="background:rgb(201,171,68)" title="2026-08-24 (понедельник)
+20 755 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-24">20k</a><a class="cal-cell wd " style="background:rgb(60,180,120)" title="2026-08-25 (вторник)
+16 958 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-25">16k</a><a class="cal-cell wd " style="background:rgb(60,180,120)" title="2026-08-26 (среда)
+16 958 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-26">16k</a><a class="cal-cell wd " style="background:rgb(224,155,63)" title="2026-08-27 (четверг)
+22 143 ₽
+a/к 5G · 1 перес." href="#onestop-2026-08-27">22k</a><div class="cal-cell empty wd " title="2026-08-28 — нет данных">—</div><a class="cal-cell we " style="background:rgb(60,180,120)" title="2026-08-29 (суббота)
+16 958 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-29">16k</a><a class="cal-cell we " style="background:rgb(135,175,92)" title="2026-08-30 (воскресенье)
+18 976 ₽
+a/к WZ · 1 перес." href="#onestop-2026-08-30">18k</a><div class="cal-cell empty wd sep-l" title="2026-08-31 — нет данных">—</div></div></div></div>
+
+  <h2>Статистика по дням недели</h2>
+  <p class="muted">Лучший день подсвечен. Анализ по всем рейсам ≤ 1 пересадок
+    за выбранный месяц.</p>
+  <table class="wd-table"><thead><tr><th>День недели</th><th class="num">дат</th><th class="num">мин ₽</th><th class="num">мин €</th><th class="num">средн</th><th class="num">макс</th></tr></thead><tbody><tr class=""><td>понедельник</td><td class="num">4</td><td class="num">18 003 ₽</td><td class="num">~205 €</td><td class="num">20 116 ₽</td><td class="num">20 852 ₽</td></tr><tr class="best"><td>вторник</td><td class="num">4</td><td class="num">16 958 ₽</td><td class="num">~193 €</td><td class="num">18 462 ₽</td><td class="num">20 880 ₽</td></tr><tr class=""><td>среда</td><td class="num">4</td><td class="num">16 958 ₽</td><td class="num">~193 €</td><td class="num">17 885 ₽</td><td class="num">19 905 ₽</td></tr><tr class=""><td>четверг</td><td class="num">3</td><td class="num">22 143 ₽</td><td class="num">~252 €</td><td class="num">23 650 ₽</td><td class="num">25 759 ₽</td></tr><tr class=""><td>пятница</td><td class="num">2</td><td class="num">21 849 ₽</td><td class="num">~248 €</td><td class="num">22 241 ₽</td><td class="num">22 633 ₽</td></tr><tr class=""><td>суббота</td><td class="num">5</td><td class="num">16 958 ₽</td><td class="num">~193 €</td><td class="num">18 452 ₽</td><td class="num">19 905 ₽</td></tr><tr class=""><td>воскресенье</td><td class="num">4</td><td class="num">18 976 ₽</td><td class="num">~216 €</td><td class="num">21 580 ₽</td><td class="num">23 809 ₽</td></tr></tbody></table>
+
+  <h2>История проверок — динамика минимума</h2>
+  <svg viewBox="0 0 760 150" class="spark" aria-label="История цен"><line x1="14" x2="746" y1="14.0" y2="14.0" stroke="var(--line)" stroke-dasharray="2,4"/><line x1="14" x2="746" y1="44.5" y2="44.5" stroke="var(--line)" stroke-dasharray="2,4"/><line x1="14" x2="746" y1="75.0" y2="75.0" stroke="var(--line)" stroke-dasharray="2,4"/><line x1="14" x2="746" y1="105.5" y2="105.5" stroke="var(--line)" stroke-dasharray="2,4"/><line x1="14" x2="746" y1="136.0" y2="136.0" stroke="var(--line)" stroke-dasharray="2,4"/><path d="M14.0,136.0 L43.3,136.0 L72.6,136.0 L101.8,130.7 L131.1,130.7 L160.4,130.7 L189.7,121.5 L219.0,121.5 L248.2,121.5 L277.5,108.0 L306.8,107.9 L336.1,106.7 L365.4,95.1 L394.6,95.1 L423.9,83.4 L453.2,82.0 L482.5,82.0 L511.8,81.6 L541.0,70.6 L570.3,68.2 L599.6,68.0 L628.9,64.1 L658.2,57.3 L687.4,51.6 L716.7,41.0 L746.0,14.0" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="746.0" cy="14.0" r="4" fill="var(--accent)"/><text x="746" y="22" class="hi-lo">max 25,759</text><text x="746" y="136" class="hi-lo">min 16,958</text></svg><div class="muted">per-run min, 26 точек: 2026-07-06 02:07 → 2026-07-06 02:07</div>
+
+  <h2>Таблица последних замеров</h2>
+  <table class="hist-table"><thead><tr><th>Проверено (UTC)</th><th>Из</th><th>Тип</th><th>Вылет</th><th class="num">₽</th><th class="num">€</th></tr></thead><tbody><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-06 (чт)</td><td class="num">25 759 ₽</td><td class="num">~293 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-02 (вс)</td><td class="num">23 809 ₽</td><td class="num">~270 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-13 (чт)</td><td class="num">23 048 ₽</td><td class="num">~262 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-14 (пт)</td><td class="num">22 633 ₽</td><td class="num">~257 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-27 (чт)</td><td class="num">22 143 ₽</td><td class="num">~252 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-09 (вс)</td><td class="num">21 861 ₽</td><td class="num">~248 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-21 (пт)</td><td class="num">21 849 ₽</td><td class="num">~248 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-16 (вс)</td><td class="num">21 674 ₽</td><td class="num">~246 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-04 (вт)</td><td class="num">20 880 ₽</td><td class="num">~237 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-10 (пн)</td><td class="num">20 852 ₽</td><td class="num">~237 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-03 (пн)</td><td class="num">20 852 ₽</td><td class="num">~237 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-24 (пн)</td><td class="num">20 755 ₽</td><td class="num">~236 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>direct</td><td>2026-08-08 (сб)</td><td class="num">19 905 ₽</td><td class="num">~226 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>direct</td><td>2026-08-05 (ср)</td><td class="num">19 905 ₽</td><td class="num">~226 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-01 (сб)</td><td class="num">19 072 ₽</td><td class="num">~217 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-15 (сб)</td><td class="num">18 988 ₽</td><td class="num">~216 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-30 (вс)</td><td class="num">18 976 ₽</td><td class="num">~216 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-11 (вт)</td><td class="num">18 005 ₽</td><td class="num">~205 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-18 (вт)</td><td class="num">18 003 ₽</td><td class="num">~205 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-17 (пн)</td><td class="num">18 003 ₽</td><td class="num">~205 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>direct</td><td>2026-08-12 (ср)</td><td class="num">17 340 ₽</td><td class="num">~197 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>direct</td><td>2026-08-22 (сб)</td><td class="num">17 338 ₽</td><td class="num">~197 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>direct</td><td>2026-08-19 (ср)</td><td class="num">17 338 ₽</td><td class="num">~197 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-29 (сб)</td><td class="num">16 958 ₽</td><td class="num">~193 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-26 (ср)</td><td class="num">16 958 ₽</td><td class="num">~193 €</td></tr><tr><td class="ts">2026-07-06 02:07</td><td>GOJ</td><td>onestop</td><td>2026-08-25 (вт)</td><td class="num">16 958 ₽</td><td class="num">~193 €</td></tr></tbody></table>
+
+  <footer>
+    Цены: Travelpayouts (Aviasales) Data API — кеш поисков за ~48 ч, ориентир
+    по тренду, не финальная цена. Учитываются только прямые рейсы и рейсы с
+    одной пересадкой (без self-connect). Евро — по официальному курсу ЦБ РФ.
+    Перед покупкой сверяйся на aviasales.ru.
+  </footer>
+</div>
+</body>
+</html>
